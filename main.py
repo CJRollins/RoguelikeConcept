@@ -33,7 +33,7 @@ def main() -> None:
         player=player
     )
 
-    engine = Engine(entities=entities, event_handler=event_handler, game_map=game_map, player=player)
+    engine = Engine(entities=entities, event_handler=event_handler, game_map=game_map, player=player, saveVisited=False)
 
     with tcod.context.new_terminal(
         screen_width,
