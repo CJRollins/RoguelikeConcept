@@ -1,13 +1,13 @@
 from __future__ import annotations
 import random
-from typing import Iterator, Tuple, TYPE_CHECKING
+from typing import Iterator, List, Tuple, TYPE_CHECKING
 import tcod
 from game_map import GameMap
 import tile_types
 import entity_factories
 
 if TYPE_CHECKING:
-    from entity import Entity
+    from engine import Engine
 
 class RectangularRoom:
     def __init__(self, x: int, y: int, width: int, height: int):
@@ -36,10 +36,11 @@ class RectangularRoom:
         )
 
 def place_entities(
-    room: RectangularRoom, dungeon: GameMap, maximum_monsters: int) -> None:
-    number_or_monsters = random.randint(0, maximum_monsters)
+    room: RectangularRoom, dungeon: GameMap, maximum_monsters: int, maximum_items: int) -> None:
+    number_of_monsters = random.randint(0, maximum_monsters)
+    number_of_items = random.randint(0, maximum_items)
 
-    for i in range(number_or_monsters):
+    for i in range(number_of_monsters):
         x = random.randint(room.x1 + 1, room.x2 - 1)
         y = random.randint(room.y1 + 1, room.y2 - 1)
 
@@ -48,6 +49,21 @@ def place_entities(
                 entity_factories.goblin.spawn(dungeon, x, y)
             else:
                 entity_factories.hobgoblin.spawn(dungeon, x, y)
+
+    for i in range(number_of_items):
+        x = random.randint(room.x1 + 1, room.x2 - 1)
+        y = random.randint(room.y1 + 1, room.y2 - 1)
+
+        if not any(entity.x == x and entity.y == y for entity in dungeon.entities):
+            item_chance = random.random()
+            if item_chance < 0.7:
+                entity_factories.fireball_scroll.spawn(dungeon, x, y)
+            elif item_chance < 0.8:
+                entity_factories.fireball_scroll.spawn(dungeon, x, y)
+            elif item_chance < 0.9:
+                entity_factories.confusion_scroll.spawn(dungeon, x, y)
+            else: 
+                entity_factories.lightning_scroll.spawn(dungeon, x, y)
 
 def tunnel_between(
     start: Tuple[int, int], end: Tuple[int, int]
@@ -71,9 +87,11 @@ def generate_dungeon(
     map_width: int,
     map_height: int,
     max_monsters_per_room: int,
-    player: Entity,
+    max_items_per_room: int,
+    engine: Engine,
 ) -> GameMap:
-    dungeon = GameMap(map_width, map_height, entities=[player])
+    player = engine.player
+    dungeon = GameMap(engine, map_width, map_height, entities=[player])
 
     rooms: List[RectangularRoom] = []
 
@@ -92,12 +110,13 @@ def generate_dungeon(
         dungeon.tiles[new_room.inner] = tile_types.floor
 
         if len(rooms) == 0:
-            player.x, player.y = new_room.center
-        else: 
+            # The first room, where the player starts.
+            player.place(*new_room.center, dungeon)
+        else: # All rooms after the first
             for x, y in tunnel_between(rooms[-1].center, new_room.center):
                 dungeon.tiles[x, y] = tile_types.floor
 
-            place_entities(new_room, dungeon, max_monsters_per_room)
+            place_entities(new_room, dungeon, max_monsters_per_room, max_items_per_room)
 
         rooms.append(new_room)
     return dungeon
